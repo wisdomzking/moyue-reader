@@ -60,6 +60,14 @@
 
 ## 快速开始
 
+0. 克隆并安装依赖（首次）：
+
+   ```bat
+   git clone https://github.com/wisdomzking/moyue-reader.git
+   cd moyue-reader
+   npm install
+   ```
+
 1. 双击 **`启动墨阅.cmd`**（会自动启动本地服务并打开阅读器窗口）。
 2. 点右上角 **添加文件夹**，选择你存放电子书的目录；也可以把单个文件拖进窗口。
 3. 点击书封开始阅读，进度会自动保存。
