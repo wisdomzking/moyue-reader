@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f5f2ec" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232f6f64'/%3E%3Cpath d='M16 10.5c-2-1.4-4.3-2-6.7-2-.9 0-1.8.1-2.3.3v13.4c.5-.1 1.4-.2 2.3-.2 2.4 0 4.7.6 6.7 2 2-1.4 4.3-2 6.7-2 .9 0 1.8.1 2.3.2V8.8c-.5-.2-1.4-.3-2.3-.3-2.4 0-4.7.6-6.7 2z' fill='%23fffdf8'/%3E%3Cpath d='M16 10.5v13.5' stroke='%232f6f64' stroke-width='1.2'/%3E%3C/svg%3E" />
+  <title>墨阅 · 本地电子书阅读器</title>
+  <script>
+    /* 首屏前应用本机主题，避免闪白 */
+    (function () {
+      try {
+        var raw = localStorage.getItem('moyue.settings');
+        var theme = 'light';
+        if (raw) {
+          var s = JSON.parse(raw);
+          if (s && ['light', 'sepia', 'dark'].indexOf(s.theme) >= 0) theme = s.theme;
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/reader.css" />
+</head>
+<body>
+  <!-- 阅读器挂载点放在最前：阅读器打开时工具栏按钮优先命中 -->
+  <div class="reader-root" id="readerRoot"></div>
+
+  <div class="app-shell" id="appShell">
+    <!-- ================= 顶栏 ================= -->
+    <header class="topbar" id="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#/shelf" aria-label="墨阅 · 返回书架">
+          <span class="brand-mark" id="brandMark"></span>
+          <span class="brand-text">
+            <b class="brand-name">墨阅</b>
+            <i class="brand-sub">本地电子书阅读器</i>
+          </span>
+        </a>
+
+        <div class="searchbox" id="searchbox">
+          <span class="searchbox-icon" data-icon="search" data-icon-size="17" aria-hidden="true"></span>
+          <input
+            id="shelfSearch"
+            class="searchbox-input"
+            type="search"
+            placeholder="搜索书名或作者"
+            aria-label="搜索书名或作者"
+            autocomplete="off"
+            spellcheck="false"
+            data-testid="search"
+          />
+          <button class="searchbox-clear" id="searchClear" type="button" aria-label="清空搜索" hidden>
+            <span data-icon="close" data-icon-size="13"></span>
+          </button>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="btn btn-primary" id="btnAddFolder" type="button">
+            <span class="btn-ico" data-icon="folder-plus"></span>
+            <span class="btn-label">添加文件夹</span>
+          </button>
+          <button class="btn btn-ghost" id="btnAddFile" type="button">
+            <span class="btn-ico" data-icon="file-plus"></span>
+            <span class="btn-label">添加文件</span>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="btnScan" type="button" title="重新扫描书库" aria-label="重新扫描书库">
+            <span data-icon="refresh"></span>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="btnSettings" type="button" data-action="settings" title="阅读设置 (S)" aria-label="阅读设置">
+            <span data-icon="sliders"></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= 书架 ================= -->
+    <main class="shelf-main" id="shelfMain" data-testid="shelf">
+      <div class="collection-bar" id="collectionBar">
+        <div class="collection-tabs" id="collectionTabs" role="tablist" aria-label="书架文件夹"></div>
+        <div class="collection-tools">
+          <button class="btn btn-ghost btn-sm" id="btnNewCollection" type="button" title="新建文件夹">
+            <span class="btn-ico" data-icon="folder-plus" data-icon-size="16"></span>
+            <span>新建文件夹</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnManageCollections" type="button" title="管理文件夹">
+            <span class="btn-ico" data-icon="more" data-icon-size="16"></span>
+            <span>管理</span>
+          </button>
+          <button class="btn btn-ghost btn-sm" id="btnAutoClassify" type="button" title="按规则自动分类">
+            <span class="btn-ico" data-icon="sparkles" data-icon-size="16"></span>
+            <span>自动分类</span>
+          </button>
+        </div>
+      </div>
+
+      <section class="continue-section" id="continueSection" aria-labelledby="continueTitle">
+        <div class="section-head">
+          <h2 class="section-title" id="continueTitle">继续阅读</h2>
+          <span class="section-sub" id="continueSub"></span>
+        </div>
+        <div class="continue-row" id="continueRow"></div>
+      </section>
+
+      <div class="shelf-toolbar" id="shelfToolbar">
+        <div class="toolbar-head">
+          <h2 class="toolbar-title" id="shelfTitle">全部书籍</h2>
+          <span class="count-badge" id="shelfCount">0 本</span>
+        </div>
+        <div class="toolbar-right">
+          <div class="chips" id="formatChips" role="group" aria-label="按格式筛选"></div>
+          <label class="select-wrap" title="排序方式">
+            <span class="select-icon" data-icon="sort" data-icon-size="16" aria-hidden="true"></span>
+            <select id="sortSelect" class="select" data-testid="sort" aria-label="排序方式">
+              <option value="recent">最近阅读</option>
+              <option value="added">添加时间</option>
+              <option value="title">书名</option>
+              <option value="author">作者</option>
+            </select>
+            <span class="select-chevron" data-icon="chevron-down" data-icon-size="15" aria-hidden="true"></span>
+          </label>
+          <button class="toggle-unread" id="unreadToggle" type="button" aria-pressed="false">
+            <span class="switch" aria-hidden="true"><span class="switch-knob"></span></span>
+            <span class="toggle-text">仅看未读</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="book-grid" id="shelfGrid" aria-live="polite"></div>
+      <div class="shelf-empty" id="shelfEmpty" hidden></div>
+      <div class="shelf-error" id="shelfError" hidden></div>
+    </main>
+  </div>
+
+  <!-- ================= 目录浏览弹窗 ================= -->
+  <div class="modal-backdrop" id="browseBackdrop" hidden>
+    <div class="modal browse-modal" role="dialog" aria-modal="true" aria-labelledby="browseTitle" data-testid="browse">
+      <header class="modal-head">
+        <div class="modal-head-text">
+          <h3 class="modal-title" id="browseTitle">添加书库文件夹</h3>
+          <p class="modal-sub">选择电脑里的文件夹加入书库，或直接打开一本电子书</p>
+        </div>
+        <button class="btn btn-icon btn-ghost" id="browseClose" type="button" aria-label="关闭">
+          <span data-icon="close"></span>
+        </button>
+      </header>
+
+      <div class="pathbar">
+        <button class="btn btn-icon btn-ghost btn-sm" id="browseUp" type="button" aria-label="返回上级" title="返回上级">
+          <span data-icon="arrow-up" data-icon-size="16"></span>
+        </button>
+        <span class="pathbar-path" id="browsePath">此电脑</span>
+        <button class="btn btn-icon btn-ghost btn-sm" id="browseRefresh" type="button" aria-label="刷新目录" title="刷新">
+          <span data-icon="refresh" data-icon-size="16"></span>
+        </button>
+      </div>
+
+      <div class="browse-quick" id="browseQuick"></div>
+      <div class="browse-body" id="browseBody">
+        <div class="browse-loading"><span class="spinner spinner-sm"></span><span>正在读取目录…</span></div>
+      </div>
+
+      <footer class="modal-foot">
+        <span class="foot-hint" id="browseHint">双击文件夹进入 · 双击电子书打开</span>
+        <button class="btn btn-ghost" id="browseOpenFile" type="button" disabled>打开选中</button>
+        <button class="btn btn-primary" id="browseAddFolder" type="button">添加此文件夹</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 文件夹命名弹窗 ================= -->
+  <div class="modal-backdrop" id="collectionDialogBackdrop" hidden>
+    <div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="collectionDialogTitle">
+      <header class="modal-head">
+        <div class="modal-head-text">
+          <h3 class="modal-title" id="collectionDialogTitle">新建文件夹</h3>
+          <p class="modal-sub" id="collectionDialogSub">给书架建一个分类文件夹</p>
+        </div>
+        <button class="btn btn-icon btn-ghost" id="collectionDialogClose" type="button" aria-label="关闭">
+          <span data-icon="close"></span>
+        </button>
+      </header>
+      <div class="modal-body">
+        <label class="field-label" for="collectionNameInput">文件夹名称</label>
+        <input
+          class="input"
+          id="collectionNameInput"
+          type="text"
+          maxlength="40"
+          placeholder="例如：销售管理 / 待读 / 2026 年 Q4"
+          autocomplete="off"
+        />
+        <p class="modal-hint" id="collectionDialogHint"></p>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn-ghost" id="collectionDialogCancel" type="button">取消</button>
+        <button class="btn btn-primary" id="collectionDialogSubmit" type="button">创建</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 移动到文件夹 ================= -->
+  <div class="modal-backdrop" id="moveDialogBackdrop" hidden>
+    <div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="moveDialogTitle">
+      <header class="modal-head">
+        <div class="modal-head-text">
+          <h3 class="modal-title" id="moveDialogTitle">移动到文件夹</h3>
+          <p class="modal-sub" id="moveDialogSub"></p>
+        </div>
+        <button class="btn btn-icon btn-ghost" id="moveDialogClose" type="button" aria-label="关闭">
+          <span data-icon="close"></span>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="collection-pick-list" id="collectionPickList"></div>
+        <button class="collection-pick-new" id="moveDialogNew" type="button">
+          <span data-icon="folder-plus" data-icon-size="16"></span>
+          <span>新建文件夹…</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 管理文件夹 ================= -->
+  <div class="modal-backdrop" id="manageDialogBackdrop" hidden>
+    <div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="manageDialogTitle">
+      <header class="modal-head">
+        <div class="modal-head-text">
+          <h3 class="modal-title" id="manageDialogTitle">管理文件夹</h3>
+          <p class="modal-sub">重命名或删除书架文件夹；删除后书籍会回到「未分类」，不会删除原文件</p>
+        </div>
+        <button class="btn btn-icon btn-ghost" id="manageDialogClose" type="button" aria-label="关闭">
+          <span data-icon="close"></span>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="collection-manage-list" id="collectionManageList"></div>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn-ghost" id="manageDialogNew" type="button">新建文件夹</button>
+        <button class="btn btn-primary" id="manageDialogDone" type="button">完成</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 自动分类 ================= -->
+  <div class="modal-backdrop" id="autoClassifyBackdrop" hidden>
+    <div class="modal collection-modal" role="dialog" aria-modal="true" aria-labelledby="autoClassifyTitle">
+      <header class="modal-head">
+        <div class="modal-head-text">
+          <h3 class="modal-title" id="autoClassifyTitle">自动分类</h3>
+          <p class="modal-sub">按规则创建文件夹并整理书籍；手动创建的文件夹不会被删除</p>
+        </div>
+        <button class="btn btn-icon btn-ghost" id="autoClassifyClose" type="button" aria-label="关闭">
+          <span data-icon="close"></span>
+        </button>
+      </header>
+      <div class="modal-body">
+        <div class="auto-classify-options" id="autoClassifyOptions">
+          <button class="auto-classify-option" type="button" data-auto-mode="format">
+            <span class="auto-classify-icon" data-icon="folder" data-icon-size="20"></span>
+            <span class="auto-classify-text">
+              <strong>按格式整理</strong>
+              <small>EPUB / PDF / Kindle / Word / 文本网页</small>
+            </span>
+          </button>
+          <button class="auto-classify-option" type="button" data-auto-mode="status">
+            <span class="auto-classify-icon" data-icon="book-open" data-icon-size="20"></span>
+            <span class="auto-classify-text">
+              <strong>按阅读状态</strong>
+              <small>未读 / 在读 / 已读完</small>
+            </span>
+          </button>
+          <button class="auto-classify-option" type="button" data-auto-mode="added">
+            <span class="auto-classify-icon" data-icon="clock" data-icon-size="20"></span>
+            <span class="auto-classify-text">
+              <strong>按添加月份</strong>
+              <small>按导入时间归档到「2026年11月」这样的文件夹</small>
+            </span>
+          </button>
+          <button class="auto-classify-option" type="button" data-auto-mode="ai">
+            <span class="auto-classify-icon" data-icon="sparkles" data-icon-size="20"></span>
+            <span class="auto-classify-text">
+              <strong>AI 智能分类</strong>
+              <small>让当前 DSH 模型按主题给书架分组（需要 DSH 模型通道）</small>
+            </span>
+          </button>
+        </div>
+      </div>
+      <footer class="modal-foot">
+        <span class="foot-hint" id="autoClassifyHint">选择一种分类方式</span>
+        <button class="btn btn-ghost" id="autoClassifyCancel" type="button">取消</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ================= 设置抽屉 ================= -->
+  <div class="drawer-backdrop" id="settingsBackdrop" hidden></div>
+  <aside
+    class="settings-drawer"
+    id="settingsDrawer"
+    role="dialog"
+    aria-modal="true"
+    aria-label="阅读设置"
+    aria-hidden="true"
+    data-testid="settings"
+  >
+    <header class="drawer-head">
+      <div class="drawer-head-text">
+        <h2 class="drawer-title">阅读设置</h2>
+        <p class="drawer-sub">即时预览，自动保存</p>
+      </div>
+      <button class="btn btn-icon btn-ghost" id="settingsClose" type="button" aria-label="关闭设置">
+        <span data-icon="close"></span>
+      </button>
+    </header>
+
+    <div class="drawer-body" id="settingsBody">
+      <div class="preview-card" id="settingsPreview" aria-hidden="true">
+        <p class="preview-line" id="previewLine">书山有路勤为径，学海无涯苦作舟。</p>
+        <p class="preview-meta">墨阅 · 阅读预览</p>
+      </div>
+
+      <section class="setting-group">
+        <div class="setting-head"><span class="setting-label">主题</span></div>
+        <div class="theme-options" role="group" aria-label="主题">
+          <button class="theme-option" type="button" data-action="theme-light" data-setting="theme" data-value="light">
+            <span class="theme-swatch swatch-light"><span data-icon="sun" data-icon-size="15"></span></span>
+            <span class="theme-name">明亮</span>
+          </button>
+          <button class="theme-option" type="button" data-action="theme-sepia" data-setting="theme" data-value="sepia">
+            <span class="theme-swatch swatch-sepia"><span data-icon="leaf" data-icon-size="15"></span></span>
+            <span class="theme-name">护眼</span>
+          </button>
+          <button class="theme-option" type="button" data-action="theme-dark" data-setting="theme" data-value="dark">
+            <span class="theme-swatch swatch-dark"><span data-icon="moon" data-icon-size="15"></span></span>
+            <span class="theme-name">夜间</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">字号</span>
+          <span class="setting-value" id="fontSizeValue">18 px</span>
+        </div>
+        <div class="range-row">
+          <button class="btn btn-icon btn-ghost btn-xs" type="button" data-action="font-dec" aria-label="减小字号">
+            <span data-icon="minus" data-icon-size="15"></span>
+          </button>
+          <input class="range" id="fontSizeRange" type="range" min="12" max="40" step="1" aria-label="字号" />
+          <button class="btn btn-icon btn-ghost btn-xs" type="button" data-action="font-inc" aria-label="增大字号">
+            <span data-icon="plus" data-icon-size="15"></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head"><span class="setting-label">字体</span></div>
+        <div class="segmented" role="group" aria-label="字体">
+          <button class="seg-btn seg-serif" type="button" data-setting="fontFamily" data-value="serif">宋体</button>
+          <button class="seg-btn seg-sans" type="button" data-setting="fontFamily" data-value="sans">黑体</button>
+          <button class="seg-btn seg-kai" type="button" data-setting="fontFamily" data-value="kai">楷体</button>
+          <button class="seg-btn" type="button" data-setting="fontFamily" data-value="system">系统</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">行距</span>
+          <span class="setting-value" id="lineHeightValue">1.8</span>
+        </div>
+        <input class="range" id="lineHeightRange" type="range" min="1.2" max="3" step="0.1" aria-label="行距" />
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">字间距</span>
+          <span class="setting-value" id="letterSpacingValue">0 em</span>
+        </div>
+        <input class="range" id="letterSpacingRange" type="range" min="0" max="0.3" step="0.01" aria-label="字间距" />
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">段间距</span>
+          <span class="setting-value" id="paragraphSpacingValue">0 em</span>
+        </div>
+        <input class="range" id="paragraphSpacingRange" type="range" min="0" max="1.5" step="0.05" aria-label="段间距" />
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head"><span class="setting-label">翻页方式</span></div>
+        <div class="segmented" role="group" aria-label="翻页方式">
+          <button class="seg-btn" type="button" data-setting="pageMode" data-value="paginated">左右翻页</button>
+          <button class="seg-btn" type="button" data-setting="pageMode" data-value="scroll">上下滚动</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">自动翻页</span>
+          <button class="setting-toggle" id="autoTurnToggle" type="button" aria-pressed="false" aria-label="自动翻页开关">
+            <span class="switch" aria-hidden="true"><span class="switch-knob"></span></span>
+            <span class="setting-value" id="autoTurnState">已关闭</span>
+          </button>
+        </div>
+        <div class="setting-head setting-head-sub">
+          <span class="setting-label setting-label-sub">翻页间隔</span>
+          <span class="setting-value" id="autoTurnIntervalValue">20 秒</span>
+        </div>
+        <input class="range" id="autoTurnIntervalRange" type="range" min="3" max="120" step="1" aria-label="自动翻页间隔" />
+        <p class="setting-hint">开启后按间隔自动翻到下一页；手动翻页会重新计时。可随时点击阅读器顶栏的时钟按钮或按 A 键开关。</p>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head"><span class="setting-label">版式</span></div>
+        <div class="segmented" role="group" aria-label="版式">
+          <button class="seg-btn" type="button" data-setting="spread" data-value="auto">双栏</button>
+          <button class="seg-btn" type="button" data-setting="spread" data-value="none">单栏</button>
+        </div>
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">版心宽度</span>
+          <span class="setting-value" id="maxWidthValue">880 px</span>
+        </div>
+        <input class="range" id="maxWidthRange" type="range" min="560" max="1200" step="20" aria-label="版心宽度" />
+      </section>
+
+      <section class="setting-group">
+        <div class="setting-head">
+          <span class="setting-label">PDF 缩放</span>
+          <span class="setting-value" id="pdfZoomValue">适应宽度</span>
+        </div>
+        <div class="pdf-zoom-row">
+          <div class="segmented" role="group" aria-label="PDF 缩放">
+            <button class="seg-btn" type="button" data-setting="pdfZoom" data-value="fit">适应宽度</button>
+            <button class="seg-btn" type="button" data-setting="pdfZoom" data-value="page">适应页面</button>
+          </div>
+          <label class="select-wrap select-wrap-sm" title="固定缩放比例">
+            <select class="select" id="pdfZoomSelect" aria-label="PDF 固定缩放比例">
+              <option value="">比例</option>
+              <option value="75">75%</option>
+              <option value="100">100%</option>
+              <option value="125">125%</option>
+              <option value="150">150%</option>
+              <option value="200">200%</option>
+            </select>
+            <span class="select-chevron" data-icon="chevron-down" data-icon-size="14" aria-hidden="true"></span>
+          </label>
+        </div>
+      </section>
+
+      <p class="drawer-note">阅读设置会即时生效并保存到服务端；服务不可用时自动保存在本机浏览器。字体、字号与间距仅对 EPUB 等流式电子书生效，PDF 保持固定版式。</p>
+    </div>
+  </aside>
+
+  <!-- ================= 右键菜单 / 拖拽 / toast / 阅读器挂载点 ================= -->
+  <div class="ctx-menu" id="ctxMenu" hidden role="menu"></div>
+  <div class="modal-root" id="modalRoot"></div>
+
+  <div class="drop-overlay" id="dropOverlay" aria-hidden="true">
+    <div class="drop-inner">
+      <span class="drop-icon" data-icon="file-plus" data-icon-size="38" aria-hidden="true"></span>
+      <strong>松开以导入电子书</strong>
+      <span>文件会复制到墨阅的导入目录，原文件不受影响</span>
+    </div>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+  <input type="file" id="filePicker" multiple hidden accept=".epub,.pdf,.mobi,.azw,.azw3,.prc,.doc,.docx,.rtf,.odt,.txt,.md,.html,.htm,.xhtml,.fb2" />
+
+  <noscript>
+    <div class="noscript">墨阅需要启用 JavaScript 才能运行。</div>
+  </noscript>
+
+  <!-- epub.min.js 是 UMD 构建，依赖全局 JSZip（vendor 里未附带，故从 node_modules 复制一份到 js/lib） -->
+  <script src="/js/lib/jszip.min.js"></script>
+  <script src="/vendor/epub.min.js"></script>
+  <script src="/vendor/pdf.min.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

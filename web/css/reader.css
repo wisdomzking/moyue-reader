@@ -1,0 +1,1444 @@
+/* ==========================================================================
+   墨阅 MoYue — 阅读器（EPUB / PDF）
+   依赖 app.css 中的设计 token
+   ========================================================================== */
+
+/* ---------------- 阅读器根 ---------------- */
+.reader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  background-image: var(--paper-glow);
+  color: var(--text);
+  overflow: hidden;
+  animation: reader-in 260ms ease;
+}
+
+@keyframes reader-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------------- 顶栏 ---------------- */
+.reader-topbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--topbar-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  transition: opacity var(--t-slow), transform var(--t-slow);
+}
+
+.reader.is-idle .reader-topbar {
+  opacity: 0;
+  transform: translateY(-12px);
+  pointer-events: none;
+}
+
+.reader-back {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.reader-back:hover {
+  background: var(--hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.reader-title-wrap {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.reader-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.2px;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  max-height: 2.7em;
+}
+
+.reader-subtitle {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.reader-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.reader-action {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.reader-action:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.reader-action.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.reader-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--border);
+  flex: none;
+}
+
+/* ---------------- 舞台 ---------------- */
+.reader-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  padding: 92px 30px 52px;
+}
+
+#epub-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--page-bg);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgba(30, 22, 12, 0.14), 0 0 0 1px rgba(30, 22, 12, 0.04);
+  transition: max-width var(--t-slow);
+}
+
+html[data-theme="dark"] #epub-viewer {
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.045);
+}
+
+.reader.reader-scroll-mode #epub-viewer {
+  box-shadow: none;
+  background: transparent;
+}
+
+#epub-viewer iframe {
+  border: 0;
+}
+
+/* ---------------- 翻页按钮 ---------------- */
+.page-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 24;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--t), transform var(--t), color var(--t-fast), background var(--t-fast);
+}
+
+.page-nav-prev {
+  left: 18px;
+}
+
+.page-nav-next {
+  right: 18px;
+}
+
+.reader:hover .page-nav {
+  opacity: 0.92;
+}
+
+.page-nav:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* 翻页按钮常显：不随顶栏自动淡出而消失，保证随时可点 */
+.reader.is-idle .page-nav {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+
+/* PDF 左右翻页按钮与阅读器同层，不随页面滚动 */
+.reader-pdf .page-nav {
+  z-index: 25;
+}
+
+/* ---------------- 底部进度 ---------------- */
+.reader-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 46px;
+  padding: 0 22px;
+  transition: opacity var(--t-slow), transform var(--t-slow);
+}
+
+.reader.is-idle .reader-progress {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+/* 自动翻页状态胶囊 */
+.auto-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 25px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.auto-chip:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.auto-chip[hidden] {
+  display: none;
+}
+
+.progress-chapter {
+  flex: none;
+  max-width: 32%;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.progress-track {
+  position: relative;
+  flex: 1;
+  min-width: 60px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.progress-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: height var(--t-fast);
+}
+
+.progress-track:hover .progress-rail {
+  height: 6px;
+}
+
+.progress-fill {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  max-width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  transition: height var(--t-fast), width 120ms linear;
+}
+
+.progress-track:hover .progress-fill {
+  height: 6px;
+}
+
+.progress-knob {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--surface);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  pointer-events: none;
+}
+
+.progress-track:hover .progress-knob {
+  opacity: 1;
+}
+
+.progress-label {
+  flex: none;
+  min-width: 40px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 抽屉（目录 / 搜索 / 书签） ---------------- */
+.reader-drawer {
+  position: absolute;
+  top: 88px;
+  bottom: 52px;
+  left: 12px;
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  max-width: calc(100% - 24px);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(calc(-100% - 26px));
+  visibility: hidden;
+  transition: transform var(--t-slow), visibility var(--t-slow);
+  overflow: hidden;
+}
+
+.reader-drawer.is-open {
+  transform: none;
+  visibility: visible;
+}
+
+.drawer-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 0;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.drawer-tab {
+  position: relative;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--t-fast), background var(--t-fast);
+}
+
+.drawer-tab:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.drawer-tab.is-active {
+  color: var(--accent);
+}
+
+.drawer-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+}
+
+.drawer-tab-count {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-close {
+  margin-left: auto;
+  margin-bottom: 6px;
+}
+
+.drawer-panel {
+  flex: 1;
+  min-height: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer-panel.is-active {
+  display: flex;
+}
+
+.drawer-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.toc-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+
+.toc-item:hover {
+  background: var(--hover);
+}
+
+.toc-item.is-current {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.toc-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.toc-level-2 {
+  font-size: 12.5px;
+}
+
+.toc-level-3 {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toc-level-3.is-current {
+  color: var(--accent);
+}
+
+.drawer-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 44px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.drawer-empty .ico {
+  color: var(--border-strong);
+}
+
+/* 搜索 */
+.search-box {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: 0;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+}
+
+.search-hint {
+  padding: 10px 14px;
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.search-result {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.search-result:hover {
+  background: var(--hover);
+}
+
+.search-result-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.search-result-excerpt {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.search-result em,
+.search-result-excerpt mark {
+  background: var(--accent2-soft);
+  color: var(--accent2);
+  font-style: normal;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* 书签 */
+.bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.bookmark-item {
+  position: relative;
+  padding: 10px 36px 10px 10px;
+  border-radius: var(--r-sm);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.bookmark-item:hover {
+  background: var(--hover);
+  border-left-color: var(--accent2);
+}
+
+.bookmark-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bookmark-excerpt {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.bookmark-meta {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bookmark-del {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+
+.bookmark-item:hover .bookmark-del,
+.bookmark-del:focus-visible {
+  opacity: 1;
+}
+
+.bookmark-del:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ---------------- 选中文本工具条 ---------------- */
+.sel-toolbar {
+  position: fixed;
+  z-index: 400;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+}
+
+.sel-toolbar.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+.sel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.sel-btn:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+/* ---------------- 加载 / 错误遮罩 ---------------- */
+.reader-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  background: var(--bg);
+  background-image: var(--paper-glow);
+  text-align: center;
+  transition: opacity 280ms ease, visibility 280ms;
+}
+
+.reader-veil.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.veil-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.veil-text {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 420px;
+}
+
+.veil-dots {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.veil-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.35;
+  animation: dot-pulse 1.2s infinite ease-in-out;
+}
+
+.veil-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.veil-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot-pulse {
+  0%, 100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.reader-error-card {
+  width: min(470px, calc(100vw - 40px));
+  padding: 32px 28px 26px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.reader-error-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.reader-error-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.reader-error-text {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.reader-error-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* ---------------- PDF ---------------- */
+.pdf-toolbar {
+  position: relative;
+  z-index: 30;
+  flex: none;
+  margin: 12px 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  row-gap: 4px;
+  flex-wrap: wrap;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--topbar-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.pdf-title {
+  flex: 1 1 120px;
+  min-width: 0;
+  max-width: 280px;
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pdf-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.pdf-page-input {
+  width: 48px;
+  height: 32px;
+  padding: 0 4px;
+  text-align: center;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: 0;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+
+.pdf-page-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.pdf-page-total {
+  padding: 0 2px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pdf-zoom-label {
+  min-width: 46px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-label-btn {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  border-radius: var(--r-sm);
+}
+
+.pdf-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 24px 52px;
+  background: var(--bg);
+  background-image: var(--paper-glow);
+  overscroll-behavior: contain;
+}
+
+.pdf-page-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.pdf-page {
+  position: relative;
+  margin: auto;
+  background: #ffffff;
+  border-radius: 3px;
+  box-shadow: 0 10px 30px rgba(30, 22, 12, 0.2), 0 0 0 1px rgba(30, 22, 12, 0.06);
+  overflow: hidden;
+  flex: none;
+}
+
+html[data-theme="dark"] .pdf-page {
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+#pdf-canvas {
+  display: block;
+  max-width: 100%;
+}
+
+#pdf-canvas.is-night {
+  filter: invert(0.92) hue-rotate(180deg) contrast(0.94) brightness(1.02);
+}
+
+.pdf-page-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.32);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+
+.pdf-page-loading.is-visible {
+  opacity: 1;
+}
+
+html[data-theme="dark"] .pdf-page-loading {
+  background: rgba(18, 20, 22, 0.4);
+}
+
+.pdf-night-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+
+.pdf-night-indicator:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.pdf-night-indicator.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* PDF 目录树复用 toc 样式，层级缩进由 JS 写入 inline padding-left */
+.pdf-outline .toc-item {
+  line-height: 1.45;
+}
+
+/* ---------------- 响应式 ---------------- */
+@media (max-width: 1024px) {
+  .reader-stage {
+    padding: 86px 18px 50px;
+  }
+
+  .page-nav {
+    width: 38px;
+    height: 38px;
+    margin-top: -19px;
+    opacity: 0.5;
+  }
+
+  .page-nav-prev {
+    left: 8px;
+  }
+
+  .page-nav-next {
+    right: 8px;
+  }
+
+  .reader-drawer {
+    top: 84px;
+    left: 8px;
+    bottom: 50px;
+    width: min(340px, calc(100% - 16px));
+  }
+}
+
+@media (max-width: 760px) {
+  .reader-topbar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+  }
+
+  .pdf-toolbar {
+    margin: 8px 8px 0;
+    gap: 4px;
+  }
+
+  .reader-stage {
+    padding: 80px 10px 48px;
+  }
+
+  .reader-drawer {
+    top: 78px;
+  }
+
+  .reader-progress {
+    height: 42px;
+    padding: 0 14px;
+    gap: 10px;
+  }
+
+  .progress-chapter {
+    display: none;
+  }
+
+  .pdf-stage {
+    padding: 12px 10px 48px;
+  }
+
+  .pdf-title {
+    display: none;
+  }
+
+  .pdf-label-btn {
+    display: none;
+  }
+
+  .reader-title {
+    font-size: 13.5px;
+  }
+}
+
+@media (max-width: 520px) {
+  .reader-topbar {
+    gap: 4px;
+    padding: 6px;
+    min-height: 52px;
+  }
+
+  .reader-subtitle {
+    display: none;
+  }
+
+  .reader-action,
+  .reader-back {
+    width: 34px;
+    height: 34px;
+  }
+
+  #epub-viewer {
+    border-radius: 0;
+  }
+
+  .reader-stage {
+    padding: 72px 4px 44px;
+  }
+
+  .reader-drawer {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .pdf-stage {
+    padding: 10px 4px 44px;
+  }
+
+  .pdf-toolbar {
+    margin: 6px 6px 0;
+    padding: 6px;
+  }
+
+  .progress-label {
+    font-size: 11px;
+    min-width: 34px;
+  }
+}
+
+/* ---------------- AI 章节导读 ---------------- */
+.ai-drawer {
+  position: absolute;
+  top: 80px;
+  right: 12px;
+  bottom: 58px;
+  z-index: 34;
+  display: flex;
+  flex-direction: column;
+  width: min(430px, calc(100vw - 24px));
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(100% + 24px));
+  transition: transform var(--t-slow), opacity var(--t-slow);
+}
+
+.ai-drawer.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.ai-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ai-head-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 9px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.ai-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.ai-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.ai-sub {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ai-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px 6px;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.78;
+  scrollbar-width: thin;
+}
+
+.ai-empty,
+.ai-loading,
+.ai-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 34px 18px;
+  text-align: center;
+}
+
+.ai-empty-icon {
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.ai-empty-title,
+.ai-loading-title,
+.ai-error-title {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ai-empty-text,
+.ai-loading-text,
+.ai-error-text,
+.ai-error-hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+
+.ai-error-icon {
+  color: var(--danger);
+}
+
+.ai-error-text {
+  color: var(--text);
+}
+
+.ai-disclaimer {
+  margin: 16px 0 4px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.ai-meta {
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ai-section {
+  margin: 0 0 15px;
+  padding-bottom: 13px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.ai-section:last-of-type {
+  border-bottom: 0;
+}
+
+.ai-section h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--accent);
+}
+
+.ai-section h5 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--muted);
+}
+
+.ai-section p {
+  margin: 0 0 8px;
+}
+
+.ai-section ul,
+.ai-section ol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.ai-section li {
+  line-height: 1.75;
+}
+
+.ai-thesis {
+  margin: 0 0 4px;
+  padding: 9px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px 9px 9px 4px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.ai-thesis span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--accent);
+}
+
+.ai-concepts {
+  margin: 0;
+}
+
+.ai-concepts dt {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.ai-concepts dd {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.ai-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-keywords span {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.ai-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ai-foot .btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.ai-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ai-auto input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .ai-drawer {
+    top: 76px;
+    right: 8px;
+    bottom: 52px;
+    left: 8px;
+    width: auto;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ai-drawer {
+    top: 68px;
+    right: 4px;
+    bottom: 44px;
+    left: 4px;
+    border-radius: 12px;
+  }
+
+  .ai-foot {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ai-auto {
+    margin-left: 0;
+    width: 100%;
+  }
+}

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>sf</genre>
+      <author>
+        <first-name>佚名</first-name>
+        <last-name>作者</last-name>
+      </author>
+      <book-title>FictionBook 样章</book-title>
+      <lang>zh</lang>
+      <annotation><p>用于验证 FB2 解析的短篇样章。</p></annotation>
+    </title-info>
+    <document-info>
+      <author><nickname>moyue</nickname></author>
+      <date value="2026-11-03">2026-11-03</date>
+      <id>moyue-fb2-sample</id>
+      <version>1.0</version>
+    </document-info>
+  </description>
+  <body>
+    <title><p>FictionBook 样章</p></title>
+    <section>
+      <title><p>第一章 星图</p></title>
+      <p>观测站的穹顶在午夜缓缓打开，像一朵金属的花。风从缝隙里灌进来，带着雪的味道。</p>
+      <p>老人把星图铺在桌上，手指沿着一条几乎看不见的线慢慢移动：“你看，这颗星在三百年前就该熄灭了，可它还在亮。”</p>
+      <p>“为什么？”年轻人问。</p>
+      <p>“因为光走得慢。”老人笑了笑，“我们看到的光，是它三百年前发出的。它也许早已不在，但我们仍然看得见它。”</p>
+    </section>
+    <section>
+      <title><p>第二章 回声</p></title>
+      <p>年轻人后来常常想起这句话。他离开观测站的那天，雪下得很大，车灯只照见前方几米的路。</p>
+      <p>很多年后，他成了另一个观测站的老人。也有一个年轻人问他同样的问题。</p>
+      <p>他想了想，说：“因为光走得慢。也因为我们舍不得。”</p>
+    </section>
+  </body>
+</FictionBook>

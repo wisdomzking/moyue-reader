@@ -1,0 +1,24 @@
+# deps & build output
+node_modules/
+probe/
+.cache/
+data/
+test/lo-out/
+test/mobi-out/
+test/mobi-out2/
+test/shots/
+test/shots-*.png
+test/edge-*.png
+test/chrome-*.png
+test/_probe.txt
+*.log
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,19 @@
+{
+  "name": "moyue-reader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "墨阅 MoYue - 本地电子书阅读器（EPUB/PDF/MOBI/AZW3/WORD/TXT…）",
+  "scripts": {
+    "start": "node scripts/launch.js",
+    "server": "node server/server.js",
+    "test:api": "node test/api-check.js",
+    "test:formats": "node test/formats-selftest.js",
+    "test:e2e": "python test/e2e.py --fresh"
+  },
+  "dependencies": {
+    "epubjs": "0.3.93",
+    "pdfjs-dist": "3.11.174",
+    "jszip": "3.10.1",
+    "mammoth": "1.8.0"
+  }
+}
